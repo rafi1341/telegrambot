@@ -3,7 +3,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-WEB_APP_URL = os.environ.get("WEB_APP_URL")
+WEB_APP_URL = os.environ.get("https://tokenhatch.netlify.app/")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -21,4 +21,5 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     app.run_polling()  # <--- Use polling instead of webhook for now
     # restart
+
 
