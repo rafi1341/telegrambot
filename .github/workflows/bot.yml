@@ -1,37 +1,38 @@
-name: Telegram Bot
+name: Deploy Telegram Bot
 
 on:
-  workflow_dispatch:
   push:
-  schedule:
-    - cron: "*/15 * * * *"
+    branches: [main]
 
 jobs:
-  run-bot:
+  deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-    - name: Install Cloudflared
-      run: |
-        sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-        sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
-        sudo chmod +x /usr/local/bin/cloudflared
-
-    - name: Start Cloudflare Tunnel
-      run: |
-        cloudflared tunnel run --token ${{ secrets.TUNNEL_TOKEN }} &
-        sleep 5
-
-    - name: Setup Python
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: 3.10
 
     - name: Install dependencies
-      run: pip install -r requirements.txt
+      run: |
+        python -m pip install --upgrade pip
+        pip install python-telegram-bot==20.4
+
+    - name: Install Cloudflare Tunnel
+      run: |
+        wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i cloudflared-linux-amd64.deb
+
+    - name: Start Cloudflare Tunnel
+      run: nohup cloudflared tunnel --url http://localhost:8443 &
 
     - name: Run Bot
-      run: python main.py
+      env:
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
+        WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}  # Your Cloudflare Tunnel public URL
+      run: python bot.py
