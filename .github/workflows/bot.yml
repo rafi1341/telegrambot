@@ -24,12 +24,11 @@ jobs:
         run: |
           pip install --no-cache-dir -r requirements.txt
 
-          - name: Install cloudflared
-  run: |
-    wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-    sudo dpkg -i cloudflared-linux-amd64.deb
+      - name: Install cloudflared
+        run: |
+          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
 
-          
       - name: Start Cloudflare Tunnel
         run: |
           nohup cloudflared tunnel run ${{ secrets.TUNNEL_ID }} --token ${{ secrets.TUNNEL_TOKEN }} &
