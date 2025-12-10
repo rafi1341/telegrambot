@@ -27,12 +27,17 @@ jobs:
         wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
         sudo dpkg -i cloudflared-linux-amd64.deb
 
-    - name: Start Cloudflare Tunnel
-      run: nohup cloudflared tunnel --url http://localhost:8443 &
+    - name: Start Cloudflare Tunnel & get public URL
+      id: tunnel
+      run: |
+        nohup cloudflared tunnel --url http://localhost:8443 --no-autoupdate > tunnel.log 2>&1 &
+        sleep 5
+        PUBLIC_URL=$(grep -oP 'https://\S+\.trycloudflare.com' tunnel.log | head -1)
+        echo "PUBLIC_URL=$PUBLIC_URL" >> $GITHUB_ENV
 
     - name: Run Bot
       env:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
-        WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}  # Your Cloudflare Tunnel public URL
+        WEBHOOK_URL: ${{ env.PUBLIC_URL }}/telegram_webhook
       run: python bot.py
