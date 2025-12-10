@@ -31,8 +31,8 @@ jobs:
           sudo dpkg -i cloudflared.deb
 
       - name: Start Cloudflare Tunnel
-        run: |
-          nohup cloudflared tunnel run ${{ secrets.TUNNEL_ID }} --token ${{ secrets.TUNNEL_TOKEN }} &
+        run: 
+          nohup cloudflared tunnel --token ${{ secrets.TUNNEL_TOKEN }} run &
 
       - name: Start Telegram Bot
         env:
