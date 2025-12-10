@@ -37,5 +37,7 @@ jobs:
       - name: Start Telegram Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |
           python bot.py
