@@ -2,8 +2,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppI
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
 
-BOT_TOKEN = os.environ.get("7525146034:AAH2G0Kg-WaLBzr0SPA3DK7dA5T5lU_SmUA")
-WEB_APP_URL = os.environ.get("https://tokenhatch.netlify.app/")
+# Read the token and web app URL from environment variables
+BOT_TOKEN = os.environ.get("7525146034:AAH2G0Kg-WaLBzr0SPA3DK7dA5T5lU_SmUA")        # ← should match GitHub Secret name
+WEB_APP_URL = os.environ.get("https://tokenhatch.netlify.app/")    # ← should match GitHub Secret name
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
