@@ -3,10 +3,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppI
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # Bot token from BotFather
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7525146034:AAH2G0Kg-WaLBzr0SPA3DK7dA5T5lU_SmUA")
 
 # URL where Telegram should send updates (Netlify, Cloudflare Tunnel, or your domain)
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://your-domain.com/" + BOT_TOKEN)
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://tokenhatch.netlify.app/" + BOT_TOKEN)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -35,3 +35,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", 8443)),
         webhook_url=WEBHOOK_URL
     )
+
