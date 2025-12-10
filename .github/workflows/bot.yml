@@ -1,38 +1,35 @@
-name: Deploy Telegram Bot
+name: Telegram Bot 24/7
 
 on:
   push:
-    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */4 * * *"
 
 jobs:
-  deploy:
+  run:
     runs-on: ubuntu-latest
+    timeout-minutes: 999999
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install python-telegram-bot==20.4
-
-      - name: Install Cloudflare Tunnel
-        run: |
-          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
-          sudo dpkg -i cloudflared.deb
+          pip install -r requirements.txt
 
       - name: Start Cloudflare Tunnel
-        run: nohup cloudflared tunnel --url http://localhost:8443 &
+        run: |
+          nohup cloudflared tunnel run ${{ secrets.TUNNEL_ID }} --token ${{ secrets.TUNNEL_TOKEN }} &
 
-      - name: Run bot
+      - name: Start Telegram Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
-          PORT: 8443
-        run: python bot.py
+        run: |
+          python bot.py
