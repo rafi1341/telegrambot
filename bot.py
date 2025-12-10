@@ -1,27 +1,24 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram import WebAppInfo
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# Replace with your actual bot token from BotFather
-BOT_TOKEN = "7525146034:AAH2G0Kg-WaLBzr0SPA3DK7dA5T5lU_SmUA"
+# Bot token from BotFather
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
-# Replace with your Netlify app URL
-WEB_APP_URL = "https://tokenhatch.netlify.app/"
+# URL where Telegram should send updates (Netlify, Cloudflare Tunnel, or your domain)
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://your-domain.com/" + BOT_TOKEN)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
 
-    # Inline button to launch web app
-    
     keyboard = [
-        [InlineKeyboardButton("Launch App", web_app=WebAppInfo(url=WEB_APP_URL))]
+        [InlineKeyboardButton("Launch App", web_app=WebAppInfo(url="https://tokenhatch.netlify.app/"))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Send banner image with caption
     await context.bot.send_photo(
         chat_id=chat_id,
-        photo=open("banner.png", "rb"),  # Make sure banner.png is in the same folder
+        photo=open("banner.png", "rb"),
         caption="Welcome to TokenHatch! 🥚\nHatch creatures, get $EGG crypto points, and earn airdrops!",
         reply_markup=reply_markup
     )
@@ -29,6 +26,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    
-    print("Bot started...")
-    app.run_polling()
+
+    print("Bot started with webhook...")
+
+    # Run webhook server
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 8443)),
+        webhook_url=WEBHOOK_URL
+    )
