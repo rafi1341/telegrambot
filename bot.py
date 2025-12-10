@@ -1,15 +1,12 @@
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import os
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://tokenhatch.netlify.app/")
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+WEB_APP_URL = os.environ.get("WEB_APP_URL")
 
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable is missing!")
-if not WEBHOOK_URL:
-    raise ValueError("WEBHOOK_URL environment variable is missing!")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -27,9 +24,5 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
 
-    print(f"Bot started, webhook URL: {WEBHOOK_URL}")
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=8443,
-        webhook_url=WEBHOOK_URL
-    )
+    print("Bot started using polling...")
+    app.run_polling()
