@@ -1,39 +1,42 @@
+from flask import Flask, request, jsonify
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
-import sqlite3
-import json
+import threading
 
+# --------- Configuration ----------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
+# Store tokens in memory for now (replace with DB later if needed)
+user_tokens = {}  # key: user_id (str), value: tokens (int)
+
+# --------- Flask API ----------
+app = Flask(__name__)
+
+@app.route("/get_tokens", methods=["GET"])
+def get_tokens():
+    user_id = request.args.get("user_id")
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+    tokens = user_tokens.get(user_id, 0)
+    return jsonify({"tokens": tokens})
+
+@app.route("/update_tokens", methods=["POST"])
+def update_tokens():
+    data = request.json
+    user_id = data.get("user_id")
+    tokens = data.get("tokens")
+    if user_id is None or tokens is None:
+        return jsonify({"error": "user_id and tokens required"}), 400
+    user_tokens[user_id] = tokens
+    return jsonify({"success": True})
+
+# --------- Telegram Bot ----------
 WEB_APP_URL = "https://tokenhatch.onrender.com/?v=2"
 
-# --- SQLite database setup ---
-conn = sqlite3.connect("tokens.db", check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS user_tokens (
-    user_id INTEGER PRIMARY KEY,
-    tokens INTEGER DEFAULT 0
-)
-""")
-conn.commit()
-
-# --- Helper functions ---
-def get_tokens(user_id: int) -> int:
-    cursor.execute("SELECT tokens FROM user_tokens WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    return row[0] if row else 0
-
-def set_tokens(user_id: int, tokens: int):
-    cursor.execute("""
-    INSERT INTO user_tokens (user_id, tokens) VALUES (?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET tokens = excluded.tokens
-    """, (user_id, tokens))
-    conn.commit()
-
-# --- /start command ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+
     keyboard = [
         [InlineKeyboardButton("Launch App💵", web_app=WebAppInfo(url=WEB_APP_URL))]
     ]
@@ -46,29 +49,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-# --- Handle data sent from the Web App ---
-async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.web_app_data:
-        user_id = update.effective_user.id
-        data_str = update.message.web_app_data.data
-        try:
-            data = json.loads(data_str)
-            tokens = int(data.get("tokens", 0))
-            set_tokens(user_id, tokens)
-            await update.message.reply_text(f"✅ Your tokens have been saved! Current: {tokens}")
-        except Exception as e:
-            await update.message.reply_text(f"❌ Error saving data: {e}")
+# Run Flask in a separate thread
+def run_flask():
+    app.run(host="0.0.0.0", port=5000)
 
-# --- Retrieve user tokens ---
-async def my_tokens(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    tokens = get_tokens(user_id)
-    await update.message.reply_text(f"💰 You currently have {tokens} $EGG tokens!")
-
-# --- Main ---
 if __name__ == "__main__":
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("mytokens", my_tokens))
-    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
-    app.run_polling()
+    threading.Thread(target=run_flask).start()
+
+    # Telegram Bot
+    bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
+    bot_app.add_handler(CommandHandler("start", start))
+    bot_app.run_polling()
