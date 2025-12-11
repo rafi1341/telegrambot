@@ -1,62 +1,97 @@
-from flask import Flask, request, jsonify
+# bot.py
+from flask import Flask, request, jsonify, send_from_directory
+from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import sqlite3
 import os
-import threading
 
-# --------- Configuration ----------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+WEB_APP_URL = "https://your-render-url.onrender.com"
 
-# Store tokens in memory for now (replace with DB later if needed)
-user_tokens = {}  # key: user_id (str), value: tokens (int)
+# ----------------------------
+# SQLite database setup
+# ----------------------------
+DB_FILE = "tokens.db"
 
-# --------- Flask API ----------
-app = Flask(__name__)
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users_tokens (
+            user_id TEXT PRIMARY KEY,
+            tokens INTEGER DEFAULT 0
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-@app.route("/get_tokens", methods=["GET"])
-def get_tokens():
-    user_id = request.args.get("user_id")
-    if not user_id:
-        return jsonify({"error": "user_id required"}), 400
-    tokens = user_tokens.get(user_id, 0)
-    return jsonify({"tokens": tokens})
+def get_tokens(user_id):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT tokens FROM users_tokens WHERE user_id=?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else 0
 
-@app.route("/update_tokens", methods=["POST"])
-def update_tokens():
+def update_tokens(user_id, new_tokens):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO users_tokens(user_id, tokens)
+        VALUES (?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET tokens=excluded.tokens
+    """, (user_id, new_tokens))
+    conn.commit()
+    conn.close()
+
+# ----------------------------
+# Flask app for mini app API
+# ----------------------------
+app = Flask(__name__, static_folder='static')
+
+@app.route("/")
+def index():
+    return send_from_directory('static', 'index.html')
+
+@app.route("/get_tokens/<user_id>")
+def api_get_tokens(user_id):
+    return jsonify({"tokens": get_tokens(user_id)})
+
+@app.route("/add_token/<user_id>", methods=["POST"])
+def api_add_token(user_id):
     data = request.json
-    user_id = data.get("user_id")
-    tokens = data.get("tokens")
-    if user_id is None or tokens is None:
-        return jsonify({"error": "user_id and tokens required"}), 400
-    user_tokens[user_id] = tokens
-    return jsonify({"success": True})
+    amount = data.get("amount", 1)
+    current = get_tokens(user_id)
+    new_total = current + amount
+    update_tokens(user_id, new_total)
+    return jsonify({"tokens": new_total})
 
-# --------- Telegram Bot ----------
-WEB_APP_URL = "https://tokenhatch.onrender.com/?v=2"
-
+# ----------------------------
+# Telegram bot
+# ----------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-
     keyboard = [
         [InlineKeyboardButton("Launch App💵", web_app=WebAppInfo(url=WEB_APP_URL))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     await context.bot.send_photo(
         chat_id=chat_id,
-        photo=open("banner.png", "rb"),
-        caption="Welcome to TokenHatch! 🥚 Hatch creatures, get $EGG crypto points, and earn airdrops!",
+        photo=open("static/banner.png", "rb"),
+        caption="Welcome to TokenHatch! 🥚 Collect eggs and earn $EGG tokens!",
         reply_markup=reply_markup
     )
 
-# Run Flask in a separate thread
-def run_flask():
-    app.run(host="0.0.0.0", port=5000)
+def run_bot():
+    app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
+    app_bot.add_handler(CommandHandler("start", start))
+    app_bot.run_polling()
 
+# ----------------------------
+# Main entry
+# ----------------------------
 if __name__ == "__main__":
-    threading.Thread(target=run_flask).start()
-
-    # Telegram Bot
-    bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
-    bot_app.add_handler(CommandHandler("start", start))
-    bot_app.run_polling()
+    init_db()
+    Thread(target=run_bot).start()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
