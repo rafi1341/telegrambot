@@ -1,7 +1,6 @@
-python-telegram-bot==20.4
-Flask==2.3.4
-Flask-Cors==3.0.10
-SQLAlchemy==1.4.32
+python-telegram-bot==20.5
+Flask==2.2.5
+
 
 
 
