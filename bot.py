@@ -51,9 +51,12 @@ def load_cache():
     return {}
 
 def save_cache():
-    with open(CACHE_FILE, "w") as f:
-        json.dump(user_cache, f)
-
+    try:
+        with open(CACHE_FILE, "w") as f:
+            json.dump(user_cache, f)
+        print(f"cache.json saved. Current cache: {user_cache}")
+    except Exception as e:
+        print("Failed to save cache.json:", e)
 user_cache = load_cache()  # {user_id: {"balance": int}}
 
 # -----------------------------
@@ -155,4 +158,5 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     print("Bot started...")
     app.run_polling()
+
 
