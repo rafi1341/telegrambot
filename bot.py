@@ -2,47 +2,24 @@ import os
 import asyncio
 from datetime import datetime, timedelta
 from collections import defaultdict
-import urllib.parse as urlparse
-import psycopg2
+from supabase import create_client
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ---------------------------
-# LOAD BOT TOKEN
+# BOT TOKEN
 # ---------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 if not BOT_TOKEN:
     raise Exception("BOT_TOKEN not found in secrets")
 
 # ---------------------------
-# CONNECT TO SUPABASE POSTGRES
+# SUPABASE CLIENT
 # ---------------------------
-DATABASE_URL = os.environ.get("DATABASE_URL")
-conn = psycopg2.connect(DATABASE_URL)
-if not DATABASE_URL:
-    raise Exception("DATABASE_URL not found in secrets")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Parse the URL
-url = urlparse.urlparse(DATABASE_URL)
-
-conn = psycopg2.connect(
-    dbname=url.path[1:],       # remove leading '/'
-    user=url.username,
-    password=url.password,
-    host=url.hostname,
-    port=url.port,
-    sslmode='require'          # enforce SSL
-)
-cursor = conn.cursor()
-
-# Ensure users table exists
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    user_id BIGINT PRIMARY KEY,
-    tokens INT DEFAULT 0
-)
-""")
-conn.commit()
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------------------
 # IN-MEMORY CACHE
@@ -50,29 +27,26 @@ conn.commit()
 user_cache = defaultdict(lambda: {"tokens": 0, "last_update": datetime.now()})
 
 # ---------------------------
-# FLUSH CACHE TO DATABASE
+# FLUSH CACHE TO SUPABASE
 # ---------------------------
 async def flush_cache():
     while True:
         now = datetime.now()
         for user_id, data in list(user_cache.items()):
             if now - data["last_update"] >= timedelta(seconds=10):
-                cursor.execute(
-                    """
-                    INSERT INTO users (user_id, tokens)
-                    VALUES (%s, %s)
-                    ON CONFLICT (user_id) DO UPDATE SET tokens = users.tokens + EXCLUDED.tokens
-                    """,
-                    (user_id, data["tokens"])
-                )
-                conn.commit()
+                # Upsert using Supabase REST client
+                supabase.table("users").upsert({
+                    "user_id": user_id,
+                    "tokens": data["tokens"]
+                }, on_conflict="user_id").execute()
+
                 # Reset cache
                 user_cache[user_id]["tokens"] = 0
                 user_cache[user_id]["last_update"] = datetime.now()
         await asyncio.sleep(5)
 
 # ---------------------------
-# BOT COMMANDS
+# TELEGRAM BOT HANDLERS
 # ---------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("Tap Egg 🥚", callback_data="tap_egg")]]
@@ -84,7 +58,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
 
-    # Update cache
+    # Update in-memory cache
     user_cache[user_id]["tokens"] += 1
     user_cache[user_id]["last_update"] = datetime.now()
 
@@ -96,7 +70,7 @@ async def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button))
 
-    # Start cache flush in background
+    # Start cache flush
     asyncio.create_task(flush_cache())
 
     print("Bot is running...")
@@ -104,5 +78,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
