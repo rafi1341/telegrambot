@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 999999
 
+    env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -30,3 +34,6 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
         run: python bot.py
+        
+       
+
