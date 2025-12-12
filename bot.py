@@ -74,7 +74,7 @@ def load_cache_from_db():
 def flush_worker():
     while True:
         try:
-            time.sleep(30)
+            time.sleep(10)
             
             if not user_cache:
                 print("Cache empty, skipping flush")
@@ -246,3 +246,4 @@ if __name__ == "__main__":
     
     print("✅ Bot started and polling...")
     app.run_polling()
+
