@@ -10,7 +10,6 @@ import time
 # -----------------------------
 # Environment variables
 # -----------------------------
-
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 WEB_APP_URL = os.environ.get("WEB_APP_URL")
 PG_HOST = os.environ.get("PG_HOST")
@@ -19,7 +18,7 @@ PG_USER = os.environ.get("PG_USER")
 PG_PASSWORD = os.environ.get("PG_PASSWORD")
 PG_DATABASE = os.environ.get("PG_DATABASE")
 PG_SSLMODE = os.environ.get("PG_SSLMODE", "require")
-API_SECRET = os.environ.get("API_SECRET")  # for mini app auth
+API_SECRET = os.environ.get("API_SECRET")  # For mini app authentication
 
 if not all([BOT_TOKEN, WEB_APP_URL, PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE, API_SECRET]):
     raise Exception("One or more environment variables are missing!")
@@ -38,7 +37,7 @@ def get_db():
     )
 
 # -----------------------------
-# JSON cache system
+# JSON backup
 # -----------------------------
 CACHE_FILE = "cache.json"
 
@@ -47,21 +46,15 @@ def load_cache():
         try:
             with open(CACHE_FILE, "r") as f:
                 return json.load(f)
-        except Exception as e:
-            print("Failed to load cache.json:", e)
+        except:
             return {}
     return {}
 
 def save_cache():
-    try:
-        with open(CACHE_FILE, "w") as f:
-            json.dump(user_cache, f)
-        print(f"cache.json saved. Current cache: {user_cache}")
-    except Exception as e:
-        print("Failed to save cache.json:", e)
+    with open(CACHE_FILE, "w") as f:
+        json.dump(user_cache, f)
 
-# In-memory cache
-user_cache = load_cache()
+user_cache = load_cache()  # {user_id: {"balance": int}}
 
 # -----------------------------
 # Flush cache to DB + JSON
@@ -85,12 +78,11 @@ def flush_worker():
             conn.commit()
             cur.close()
             conn.close()
-
             save_cache()
-            print("Flushed cache to DB + JSON backup.")
+            print("Flushed cache to DB + JSON backup. Current cache:", user_cache)
         except Exception as e:
             print("Flush error:", e)
-        time.sleep(30)
+        time.sleep(30)  # flush interval
 
 threading.Thread(target=flush_worker, daemon=True).start()
 
@@ -99,14 +91,6 @@ threading.Thread(target=flush_worker, daemon=True).start()
 # -----------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    uid = str(chat_id)
-
-    # Initialize cache for user if not exists
-    if uid not in user_cache:
-        user_cache[uid] = {"balance": 0}
-        save_cache()
-        print(f"Created new user in cache: {uid}")
-
     keyboard = [[InlineKeyboardButton("Launch App", web_app=WebAppInfo(url=WEB_APP_URL))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -117,8 +101,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+    uid = str(chat_id)
+    if uid not in user_cache:
+        user_cache[uid] = {"balance": 0}
+        save_cache()
+
 # -----------------------------
-# Token updates from mini app
+# Function to update tokens
 # -----------------------------
 def add_tokens(user_id, tokens):
     uid = str(user_id)
@@ -128,7 +117,9 @@ def add_tokens(user_id, tokens):
     print(f"Added {tokens} tokens to user {uid}. New balance: {user_cache[uid]['balance']}")
     save_cache()
 
-# Flask app
+# -----------------------------
+# Flask app to receive updates from mini app
+# -----------------------------
 flask_app = Flask(__name__)
 
 @flask_app.route("/update_tokens", methods=["POST"])
