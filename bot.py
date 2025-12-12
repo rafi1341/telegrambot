@@ -3,7 +3,7 @@ from telegram import WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # Replace with your actual bot token from BotFather
-BOT_TOKEN = "7525146034:AAH2G0Kg-WaLBzr0SPA3DK7dA5T5lU_SmUA"
+BOT_TOKEN = "8210266665:AAFArla_n3LA7VqG34h6vxiRK0tFkEdqu-4"
 
 # Replace with your Netlify app URL
 WEB_APP_URL = "https://tokenhatch.onrender.com/"
@@ -32,3 +32,4 @@ if __name__ == "__main__":
     
     print("Bot started...")
     app.run_polling()
+
