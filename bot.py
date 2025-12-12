@@ -83,8 +83,10 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button))
 
-    # Start background cache flush
-    asyncio.create_task(flush_cache())
+    # Schedule flush_cache as a repeating job every 5 seconds
+    app.job_queue.run_repeating(lambda ctx: asyncio.create_task(flush_cache()), interval=5)
 
     print("Bot is running...")
     app.run_polling()
+
+
