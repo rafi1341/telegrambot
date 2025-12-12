@@ -88,5 +88,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
 
     # Add tokens to cache
-    user_cache[user_id]["tokens"]_]()_
+    user_cache[user_id]["tokens"]_]()
+
 
