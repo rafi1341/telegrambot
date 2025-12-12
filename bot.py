@@ -18,6 +18,7 @@ if not BOT_TOKEN:
 # CONNECT TO SUPABASE POSTGRES
 # ---------------------------
 DATABASE_URL = os.environ.get("DATABASE_URL")
+conn = psycopg2.connect(DATABASE_URL)
 if not DATABASE_URL:
     raise Exception("DATABASE_URL not found in secrets")
 
@@ -103,3 +104,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
