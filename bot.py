@@ -1,23 +1,33 @@
+import os
 import time
 import threading
 from datetime import datetime, timedelta
 from collections import defaultdict
+import urllib.parse as urlparse
 import psycopg2
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ---------------------------
-# DATABASE CONNECTION (Railway Postgres)
+# DATABASE CONNECTION (RAILWAY DATABASE_URL)
 # ---------------------------
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise Exception("DATABASE_URL environment variable not found!")
+
+# Parse the URL into connection components
+url = urlparse.urlparse(DATABASE_URL)
+
 conn = psycopg2.connect(
-    host="postgres.railway.internal",
-    user="postgres",
-    password="qAOgzdpdyOBCVjGrDQzAuIEgjiUXHGqi",
-    database="railway"
+    dbname=url.path[1:],  # Remove leading '/'
+    user=url.username,
+    password=url.password,
+    host=url.hostname,
+    port=url.port
 )
 cursor = conn.cursor()
 
-# Make sure the table exists
+# Ensure users table exists
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id BIGINT PRIMARY KEY,
@@ -57,9 +67,11 @@ def flush_cache():
 threading.Thread(target=flush_cache, daemon=True).start()
 
 # ---------------------------
-# BOT LOGIC
+# TELEGRAM BOT LOGIC
 # ---------------------------
-BOT_TOKEN = "8210266665:AAFArla_n3LA7VqG34h6vxiRK0tFkEdqu-4"
+BOT_TOKEN = os.environ.get("BOT_TOKEN")  # Set your bot token in Railway secrets
+if not BOT_TOKEN:
+    raise Exception("BOT_TOKEN environment variable not found!")
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -75,35 +87,4 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
 
     # Add tokens to cache
-    user_cache[user_id]["tokens"] += 1
-    user_cache[user_id]["last_update"] = datetime.now()
-
-    # Optionally, show current balance (cached + DB)
-    cursor.execute("SELECT tokens FROM users WHERE user_id = %s", (user_id,))
-    row = cursor.fetchone()
-    db_tokens = row[0] if row else 0
-    cached_tokens = user_cache[user_id]["tokens"]
-    total_tokens = db_tokens + cached_tokens
-
-    await query.edit_message_text(f"You tapped the egg! 🥚\nTokens: {total_tokens}")
-
-# /balance command to check tokens
-async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    cursor.execute("SELECT tokens FROM users WHERE user_id = %s", (user_id,))
-    row = cursor.fetchone()
-    db_tokens = row[0] if row else 0
-    cached_tokens = user_cache[user_id]["tokens"]
-    total_tokens = db_tokens + cached_tokens
-    await update.message.reply_text(f"Your total tokens: {total_tokens}")
-
-# ---------------------------
-# BOT INITIALIZATION
-# ---------------------------
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("balance", balance))
-app.add_handler(CallbackQueryHandler(button))
-
-# Run bot
-app.run_polling()
+    user_cache[user_id]["tokens"]_]()_
