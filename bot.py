@@ -1,18 +1,21 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram import WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import os
 
-# Replace with your actual bot token from BotFather
-BOT_TOKEN = "8210266665:AAFArla_n3LA7VqG34h6vxiRK0tFkEdqu-4"
+# Get bot token from environment variable (GitHub secret)
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise Exception("BOT_TOKEN environment variable not found!")
 
-# Replace with your Netlify app URL
-WEB_APP_URL = "https://tokenhatch.onrender.com/"
+# Your web app URL
+WEB_APP_URL = os.environ.get("WEB_APP_URL")
+if not WEB_APP_URL:
+    raise Exception("WEB_APP_URL environment variable not found!")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
 
     # Inline button to launch web app
-    
     keyboard = [
         [InlineKeyboardButton("Launch App", web_app=WebAppInfo(url=WEB_APP_URL))]
     ]
@@ -21,7 +24,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Send banner image with caption
     await context.bot.send_photo(
         chat_id=chat_id,
-        photo=open("banner.png", "rb"),  # Make sure banner.png is in the same folder
+        photo=open("banner.png", "rb"),  # Ensure banner.png is in the same folder
         caption="Welcome to TokenHatch! 🥚\nHatch creatures, get $EGG crypto points, and earn airdrops!",
         reply_markup=reply_markup
     )
