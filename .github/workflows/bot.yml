@@ -3,13 +3,10 @@ name: Telegram Bot 24/7
 on:
   push:
   workflow_dispatch:
-  schedule:
-    - cron: "0 */4 * * *"
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 999999
 
     steps:
       - name: Checkout code
@@ -28,6 +25,6 @@ jobs:
       - name: Start Telegram Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python bot.py
