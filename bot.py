@@ -3,7 +3,7 @@ from telegram import WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # Replace with your actual bot token from BotFather
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = "7525146034:AAH2G0Kg-WaLBzr0SPA3DK7dA5T5lU_SmUA"
 
 # Replace with your Netlify app URL
 WEB_APP_URL = "https://tokenhatch.onrender.com/"
