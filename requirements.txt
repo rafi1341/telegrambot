@@ -1,5 +1,5 @@
 python-telegram-bot[job-queue]==20.3
-supabase
+supabase-py==1.0.1
 
 
 
