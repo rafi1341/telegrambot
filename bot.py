@@ -1,35 +1,31 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-
+from flask import Flask, request, jsonify
+import threading
 import os
 import psycopg2
 import json
 import time
-import threading
 
-# -------------------------------------------------------------
-#  Load environment variables
-# -------------------------------------------------------------
+# -----------------------------
+# Environment variables
+# -----------------------------
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise Exception("BOT_TOKEN environment variable not found!")
-
 WEB_APP_URL = os.environ.get("WEB_APP_URL")
-if not WEB_APP_URL:
-    raise Exception("WEB_APP_URL environment variable not found!")
+PG_HOST = os.environ.get("PG_HOST")
+PG_PORT = os.environ.get("PG_PORT")
+PG_USER = os.environ.get("PG_USER")
+PG_PASSWORD = os.environ.get("PG_PASSWORD")
+PG_DATABASE = os.environ.get("PG_DATABASE")
+PG_SSLMODE = os.environ.get("PG_SSLMODE", "require")
 
-PG_HOST = os.getenv("PG_HOST")
-PG_PORT = os.getenv("PG_PORT")
-PG_USER = os.getenv("PG_USER")
-PG_PASSWORD = os.getenv("PG_PASSWORD")
-PG_DATABASE = os.getenv("PG_DATABASE")
-PG_SSLMODE = os.getenv("PG_SSLMODE", "require")
+if not all([BOT_TOKEN, WEB_APP_URL, PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE]):
+    raise Exception("One or more environment variables are missing!")
 
-# -------------------------------------------------------------
-#  Database connection
-# -------------------------------------------------------------
-
+# -----------------------------
+# Database connection
+# -----------------------------
 def get_db():
     return psycopg2.connect(
         host=PG_HOST,
@@ -40,32 +36,29 @@ def get_db():
         sslmode=PG_SSLMODE
     )
 
-# -------------------------------------------------------------
-#  JSON backup system
-# -------------------------------------------------------------
-
+# -----------------------------
+# JSON backup
+# -----------------------------
 CACHE_FILE = "cache.json"
 
 def load_cache():
-    if not os.path.exists(CACHE_FILE):
-        return {}
-    try:
-        with open(CACHE_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
 
 def save_cache():
     with open(CACHE_FILE, "w") as f:
         json.dump(user_cache, f)
 
-# In-memory user cache {user_id: {"balance": int}}
-user_cache = load_cache()
+user_cache = load_cache()  # {user_id: {"balance": int}}
 
-# -------------------------------------------------------------
-#  Automatic flusher (every 30 sec)
-# -------------------------------------------------------------
-
+# -----------------------------
+# Flush cache to DB + JSON
+# -----------------------------
 def flush_worker():
     while True:
         try:
@@ -75,7 +68,6 @@ def flush_worker():
 
             conn = get_db()
             cur = conn.cursor()
-
             for uid, data in user_cache.items():
                 cur.execute("""
                     INSERT INTO users (user_id, balance)
@@ -83,33 +75,24 @@ def flush_worker():
                     ON CONFLICT (user_id)
                     DO UPDATE SET balance = EXCLUDED.balance;
                 """, (uid, data.get("balance", 0)))
-
             conn.commit()
             cur.close()
             conn.close()
-
             save_cache()
-
-            print("Flushed to DB + JSON backup.")
-
+            print("Flushed cache to DB + JSON backup.")
         except Exception as e:
             print("Flush error:", e)
+        time.sleep(30)  # flush interval
 
-        time.sleep(30)
-
-# Start the background thread
 threading.Thread(target=flush_worker, daemon=True).start()
 
-# -------------------------------------------------------------
-#  Telegram bot handler
-# -------------------------------------------------------------
-
+# -----------------------------
+# Telegram Bot Handlers
+# -----------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
 
-    keyboard = [
-        [InlineKeyboardButton("Launch App", web_app=WebAppInfo(url=WEB_APP_URL))]
-    ]
+    keyboard = [[InlineKeyboardButton("Launch App", web_app=WebAppInfo(url=WEB_APP_URL))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await context.bot.send_photo(
@@ -119,18 +102,55 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-    # Initialize user balance in cache if not exist
-    if str(chat_id) not in user_cache:
-        user_cache[str(chat_id)] = {"balance": 0}
+    uid = str(chat_id)
+    if uid not in user_cache:
+        user_cache[uid] = {"balance": 0}
         save_cache()
 
-# -------------------------------------------------------------
-#  Start bot
-# -------------------------------------------------------------
+# Function to update tokens
+def add_tokens(user_id, tokens):
+    uid = str(user_id)
+    if uid not in user_cache:
+        user_cache[uid] = {"balance": 0}
+    user_cache[uid]["balance"] += tokens
+    print(f"Added {tokens} tokens to user {uid}. New balance: {user_cache[uid]['balance']}")
+    save_cache()
 
+# -----------------------------
+# Flask app to receive updates from mini app
+# -----------------------------
+flask_app = Flask(__name__)
+
+@flask_app.route("/update_tokens", methods=["POST"])
+def update_tokens():
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    user_id = data.get("user_id")
+    tokens = data.get("tokens")
+    api_secret = data.get("api_secret")
+
+    if api_secret != os.environ.get("API_SECRET"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    if not user_id or not isinstance(tokens, int):
+        return jsonify({"error": "Invalid user_id or tokens"}), 400
+
+    add_tokens(user_id, tokens)
+    return jsonify({"status": "success", "user_id": user_id, "tokens": tokens})
+
+# Run Flask in a separate thread
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=5000)
+
+threading.Thread(target=run_flask, daemon=True).start()
+
+# -----------------------------
+# Start Telegram Bot
+# -----------------------------
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-
     print("Bot started...")
     app.run_polling()
