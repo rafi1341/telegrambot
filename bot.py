@@ -61,6 +61,7 @@ user_cache = load_cache()  # {user_id: {"balance": int}}
 # -----------------------------
 def flush_worker():
     while True:
+        print("Current cache:", user_cache)  # <--- debug line
         try:
             if not user_cache:
                 time.sleep(30)
@@ -154,3 +155,4 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     print("Bot started...")
     app.run_polling()
+
