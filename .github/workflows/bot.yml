@@ -22,8 +22,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Start Telegram Bot
+      - name: Run Telegram Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
-        run: python bot.py
+
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_DATABASE: ${{ secrets.PG_DATABASE }}
+          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
+          
+        run: |
+          python bot.py
