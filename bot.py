@@ -74,7 +74,7 @@ def load_cache_from_db():
 def flush_worker():
     while True:
         try:
-            time.sleep(10)
+            time.sleep(10)  # Flush every 10 seconds
             
             if not user_cache:
                 print("Cache empty, skipping flush")
@@ -136,11 +136,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
 
-    # Initialize user in cache if not exists
+    # Initialize user - check database first!
     uid = str(chat_id)
     if uid not in user_cache:
-        user_cache[uid] = {"balance": 0}
-        print(f"New user {uid} added to cache")
+        # Check database first before creating new user
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT balance FROM users WHERE user_id = %s", (uid,))
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            
+            if row:
+                # User exists in database, load their balance
+                user_cache[uid] = {"balance": row[0]}
+                print(f"Existing user {uid} loaded from DB with balance: {row[0]}")
+            else:
+                # Brand new user
+                user_cache[uid] = {"balance": 0}
+                print(f"New user {uid} created with balance: 0")
+        except Exception as e:
+            print(f"Error checking user in DB: {e}")
+            user_cache[uid] = {"balance": 0}
 
 # Function to update tokens
 def add_tokens(user_id, tokens):
@@ -246,4 +264,3 @@ if __name__ == "__main__":
     
     print("✅ Bot started and polling...")
     app.run_polling()
-
