@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import threading
 import os
 import psycopg2
@@ -274,3 +275,4 @@ if __name__ == "__main__":
     
     print("✅ Bot started and polling...")
     app.run_polling()
+
