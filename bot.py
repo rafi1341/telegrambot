@@ -171,6 +171,16 @@ def add_tokens(user_id, tokens):
 # Flask app to receive updates from mini app
 flask_app = Flask(__name__)
 
+# Add CORS support
+from flask_cors import CORS
+CORS(flask_app, resources={
+    r"/*": {
+        "origins": "*",  # Allow all origins (or specify your mini app URL)
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
+
 @flask_app.route("/", methods=["GET"])
 def home():
     return jsonify({"status": "Bot is running", "cached_users": len(user_cache)})
