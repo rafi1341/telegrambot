@@ -5,6 +5,7 @@ import threading
 import os
 import psycopg2
 import time
+import requests
 
 # Environment variables
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -16,6 +17,7 @@ PG_PASSWORD = os.environ.get("PG_PASSWORD")
 PG_DATABASE = os.environ.get("PG_DATABASE")
 PG_SSLMODE = os.environ.get("PG_SSLMODE", "require")
 API_SECRET = os.environ.get("API_SECRET")
+RENDER_URL = os.environ.get("RENDER_URL")  # Add your Render service URL here
 
 if not all([BOT_TOKEN, WEB_APP_URL, PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE, API_SECRET]):
     raise Exception("One or more environment variables are missing!")
@@ -98,6 +100,20 @@ def flush_worker():
             
         except Exception as e:
             print(f"❌ Flush error: {e}")
+
+# Keep-alive ping to prevent Render spin-down
+def keep_alive_worker():
+    if not RENDER_URL:
+        print("⚠️  RENDER_URL not set, skipping keep-alive pings")
+        return
+    
+    while True:
+        try:
+            time.sleep(600)  # Ping every 10 minutes
+            response = requests.get(RENDER_URL, timeout=5)
+            print(f"💚 Keep-alive ping sent: {response.status_code}")
+        except Exception as e:
+            print(f"⚠️  Keep-alive ping failed: {e}")
 
 # Telegram Bot Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -217,6 +233,9 @@ if __name__ == "__main__":
     
     # Start flush worker thread
     threading.Thread(target=flush_worker, daemon=True).start()
+    
+    # Start keep-alive worker thread
+    threading.Thread(target=keep_alive_worker, daemon=True).start()
     
     # Start Flask in a separate thread
     threading.Thread(target=run_flask, daemon=True).start()
