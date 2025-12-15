@@ -127,7 +127,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=open("banner.png", "rb"),
-            caption="Welcome to TokenHatch! 🥚\nHatch creatures, get $HATCH crypto points, and earn airdrops!",
+            caption="HatchToken lets you earn real money💲 from tasks today, while unused rewards hatch🥚 into $HATCH tokens later.",
             reply_markup=reply_markup
         )
     except FileNotFoundError:
@@ -275,5 +275,6 @@ if __name__ == "__main__":
     
     print("✅ Bot started and polling...")
     app.run_polling()
+
 
 
